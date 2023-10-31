@@ -138,8 +138,8 @@ fn main() {
         0.0,
         0.333,
         6.0,
-        0.00000000001,
-        10.0_f64.powf(-12.0),
+        9.0* 10.0_f64.powf(-9.0),
+        10.0_f64.powf(-9.0),
         10_u32.pow(7),
         1000,
         ode_solvers::dop_shared::OutputType::Dense,
@@ -160,7 +160,7 @@ fn main() {
 
     // Handle result
     match res {
-        Ok(stats) => {
+        Ok(_stats) => {
             stepper
                 .x_out()
                 .iter()
