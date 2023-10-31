@@ -1,8 +1,7 @@
-use ode_solvers::Dop853;
-use std::fs::OpenOptions;
-use std::io::{self, BufWriter, Write};
-type State = ode_solvers::SVector<f64, 15>;
-type Time = f64;
+use std::{
+    fs::OpenOptions,
+    io::{self, BufWriter, Write},
+};
 
 struct Oscillator {
     kcu21: f64,
@@ -25,49 +24,36 @@ struct Oscillator {
     k8p: f64,
     k9: f64,
 }
-impl ode_solvers::System<State> for Oscillator {
-    // Equations of motion of the system
-    fn system(&self, _t: Time, c: &State, dc: &mut State) {
-        let c_oh = 0.025;
-        let rcu21 = self.kcu21 * c[0] * c[1];
-        let rcu22 = self.kcu22 * c[2];
-        let rm3 = self.km3 * c[2] * c[3];
-        let rm4 = self.km4 * c[4] * c[4];
-        let rm5 = self.km5 * c[1] * c[3];
-        let rm6 = self.km6 * c[1] * c[5];
-        let rm7 = self.km7 * c[6] * c[6];
-        let rm8 = self.km8 * c[6] * c[7] * c_oh;
-        let rm9 = self.km9 * c[7] * c[7] * c_oh;
-        let rm18 = self.km18 * c[8] * c[7];
-        let rm19 = self.km19 * c[9] * c[9] * c_oh;
-        let rm20 = self.km20 * c[9] * c[10] * c_oh;
-        let rm21 = self.km21 * c[8] * c[4];
-        let rm22 = self.km22 * c[10] * c[11] * c_oh;
-        let rm23 = self.km23 * c[11] * c[11] * c_oh;
-        let rm24 = self.km24 * c[1] * c[14];
-        let r6p = self.k6p * c[2];
-        let r8p = self.k8p * c[1] * c[12];
-        let r9 = self.k9 * c[1] * c[13];
 
-        dc[0] = -rcu21 + rcu22 + rm20 + r8p;
-        dc[1] = -rcu21 + rcu22 - rm5 - rm6 - rm24 - r8p - r9;
-        dc[2] = rcu21 - rcu22 - rm3;
-        dc[3] = -2.0 * rm3 - rm5 + 2.0 * rm20 + 2.0 * rm22;
-        dc[4] = rm3 - 2.0 * rm4 - rm21 + rm9 + r6p;
-        dc[5] = rm5 - rm6 + rm7 + rm8;
-        dc[6] = rm6 - 2.0 * rm7 - rm8;
-        dc[7] = rm7 - rm8 - 2.0 * rm9 - rm18 + rm19;
-        dc[8] = rm9 - rm18 + rm19 + rm20 - rm21;
-        dc[9] = 2.0 * rm18 - 2.0 * rm19 - rm20;
-        dc[10] = rm3 - rm20 - rm22;
-        dc[11] = rm21 - rm22 - rm23;
-        dc[12] = r6p - r8p;
-        dc[13] = r8p - r9;
-        dc[14] = rm22 + rm23 - rm24;
-    }
+type State = [f64; 15];
+
+// //czarna magia
+// struct BoxedFunction {
+//     f: Box<dyn Fn(&State, &Oscillator, &f64) -> f64>,
+// }
+// impl BoxedFunction {
+//     fn new<F>(f: F) -> BoxedFunction
+//     where
+//         F: Fn(&State, &Oscillator, &f64) -> f64 + 'static,
+//     {
+//         BoxedFunction { f: Box::new(f) }
+//     }
+// }
+
+macro_rules! zip {
+    ($x: expr) => ($x);
+    ($x: expr, $($y: expr), +) => (
+        $x.iter().zip(
+            zip!($($y), +))
+    )
 }
+
 fn main() {
-    //stałe
+    let _path1 = "/home/kartonrealista/actual_code/praca_magisterska_model_26zmienny/ptau1000.csv";
+    let _path2 = "/home/kartonrealista/actual_code/praca_magisterska_model_26zmienny/stezenia.csv";
+    let _path1win = r"C:\Users\admin\Desktop\MTHOMAS\x\model26zmienny\ptau.csv";
+    let path2win = r"C:\Users\admin\Desktop\MTHOMAS\x\model_japonczykow\stezenia.csv";
+
     let kcu21 = 10.0_f64.powf(2.0);
     let kcu22 = 8.3;
     let km3 = 1.6;
@@ -87,8 +73,7 @@ fn main() {
     let k6p = 6.93 * 10.0_f64.powf(-3.0);
     let k8p = 5.0 * 10.0_f64.powf(4.0);
     let k9 = 1.02 * 10.0_f64.powf(9.0);
-
-    let system = Oscillator {
+    let mut km = Oscillator {
         kcu21,
         kcu22,
         km3,
@@ -116,7 +101,20 @@ fn main() {
         .read_line(&mut c_cu_poczatkowe)
         .expect("stdin failed - stezenie poczatkowe");
 
-    let mut conc = [10.0_f64.powf(-19.0); 15];
+    //stale do rk4
+    let mut k1s = [0.0; 15];
+    let mut k2concs = [0.0; 15];
+    let mut k2s = [0.0; 15];
+    let mut k3concs = [0.0; 15];
+    let mut k3s = [0.0; 15];
+    let mut k4concs = [0.0; 15];
+    let mut k4s = [0.0; 15];
+
+    let mut h;
+    let mut t = 0.0;
+    //stezenia
+    let mut conc = [10.0_f64.powf(-8.0); 15];
+    let mut d_conc = [0.0; 15];
     conc[0] = c_cu_poczatkowe.trim_end().parse::<f64>().unwrap() * 10.0_f64.powf(-6.0);
     println!(
         "...c_cu = {}",
@@ -124,77 +122,157 @@ fn main() {
     );
     conc[1] = 0.2;
     conc[3] = 0.025;
-    let c0 = State::from(conc);
+    //let mut pot = potencjal_mieszany(c_ho2min, conc[5], conc[2], conc[1]);
+    //println!("{t},{},{}", (pot.0), (pot.1));
 
-    let mut stepper = Dop853::from_param(
-        system,
-        0.0,
-        500.0,
-        1.0,
-        c0,
-        1.0e-14,
-        1.0e-14,
-        0.9,
-        0.0,
-        0.333,
-        6.0,
-        9.0* 10.0_f64.powf(-9.0),
-        10.0_f64.powf(-9.0),
-        10_u32.pow(7),
-        1000,
-        ode_solvers::dop_shared::OutputType::Dense,
-    );
-    let res = stepper.integrate();
-
-    let path2win = r"C:\Users\admin\Desktop\MTHOMAS\x\model_japonczykow\stezenia.csv";
-
+    // let f = OpenOptions::new()
+    //     .append(true)
+    //     .open(path1win)
+    //     .expect("Unable to open file");
+    // let mut f = BufWriter::new(f);
     let stezenia_plik = OpenOptions::new()
         .append(true)
         .open(path2win)
         .expect("Unable to open file");
-
     let mut stezenia_plik = BufWriter::new(stezenia_plik);
+    // f.write_all("t,Au,Pt\n".as_bytes()).expect("tragedia");
+    // f.write_all(format!("{},{},{}\n", t / 60.0, pot.0, pot.1).as_bytes())
+    //     .expect("tragedia");
     stezenia_plik
-        .write_all("t,c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,\n".as_bytes())
+        .write_all("t,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16,c17,c18,c19,c20,c21,c22,c23,c24,c25,c26\n".as_bytes())
         .expect("tragedia stezenia");
+    let zapisy_na_sekunde = 10.0;
 
-    // Handle result
-    match res {
-        Ok(_stats) => {
-            stepper
-                .x_out()
-                .iter()
-                .zip(stepper.y_out())
-                .for_each(|(t, concs)| {
-                    stezenia_plik.write_all(
-                        format!(
-                            "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
-                            t,
-                            concs[0],
-                            concs[1],
-                            concs[2],
-                            concs[3],
-                            concs[4],
-                            concs[5],
-                            concs[6],
-                            concs[7],
-                            concs[8],
-                            concs[9],
-                            concs[10],
-                            concs[11],
-                            concs[12],
-                            concs[13],
-                            concs[14]
-                        )
-                        .as_bytes(),
-                    ).expect("aaaaaaaaaaa");
-                });
-
-            // Do something with the output...
-            // let path = Path::new("./outputs/kepler_orbit_dopri5.dat");
-            // save(stepper.x_out(), stepper.y_out(), path);
-            // println!("Results saved in: {:?}", path);
+    //let mut switch = true;
+    while t < 10000.0 {
+        if t < 5.0 * 10.0_f64.powf(-1.0) {
+            h = 4.0 * 10.0_f64.powf(-9.0)
+        } else {
+            h = 5.0 * 10.0_f64.powf(-9.0)
         }
-        Err(_) => println!("An error    occured."),
+        t += h;
+
+        rk4(
+            &mut conc,
+            &mut d_conc,
+            &h,
+            &mut km,
+            &mut k1s,
+            &mut k2concs,
+            &mut k2s,
+            &mut k3concs,
+            &mut k3s,
+            &mut k4concs,
+            &mut k4s,
+        );
+        if conc[0] > 0.01 || conc[1].is_nan() {
+            println!("{}, {}", t / 60.0, conc[0]);
+            break;
+        }
+        if (zapisy_na_sekunde * (t + h)).floor() >= (zapisy_na_sekunde * t).ceil() {
+            //println!("{}, {}, {}", t / 60.0, conc[1], km[2]);
+            //println!("{t},{},{},{:?}", (pot.0), (pot.1), conc);
+            // f.write_all(format!("{},{},{}\n", t / 60.0, pot.0, pot.1).as_bytes())
+            // .expect("tragedia");
+            stezenia_plik
+                .write_all(
+                    format!(
+                        "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},\n",
+                        t / 60.0,
+                        conc[0],
+                        conc[1],
+                        conc[2],
+                        conc[3],
+                        conc[4],
+                        conc[5],
+                        conc[6],
+                        conc[7],
+                        conc[8],
+                        conc[9],
+                        conc[10],
+                        conc[11],
+                        conc[12],
+                        conc[13],
+                        conc[14],
+                    )
+                    .as_bytes(),
+                )
+                .expect("tragedia stezenia");
+        }
     }
+}
+
+fn rk4(
+    c: &mut State,
+    dc: &mut State,
+    h: &f64,
+    km: &mut Oscillator,
+    k1s: &mut State,
+    k2concs: &mut State,
+    k2s: &mut State,
+    k3concs: &mut State,
+    k3s: &mut State,
+    k4concs: &mut State,
+    k4s: &mut State,
+) {
+    let differentials= |c: &[f64; 15], dc: &mut [f64; 15]|{
+    let c_oh = 0.025;
+    let rcu21 = km.kcu21 * c[0] * c[1];
+    let rcu22 = km.kcu22 * c[2];
+    let rm3 = km.km3 * c[2] * c[3];
+    let rm4 = km.km4 * c[4] * c[4];
+    let rm5 = km.km5 * c[1] * c[3];
+    let rm6 = km.km6 * c[1] * c[5];
+    let rm7 = km.km7 * c[6] * c[6];
+    let rm8 = km.km8 * c[6] * c[7] * c_oh;
+    let rm9 = km.km9 * c[7] * c[7] * c_oh;
+    let rm18 = km.km18 * c[8] * c[7];
+    let rm19 = km.km19 * c[9] * c[9] * c_oh;
+    let rm20 = km.km20 * c[9] * c[10] * c_oh;
+    let rm21 = km.km21 * c[8] * c[4];
+    let rm22 = km.km22 * c[10] * c[11] * c_oh;
+    let rm23 = km.km23 * c[11] * c[11] * c_oh;
+    let rm24 = km.km24 * c[1] * c[14];
+    let r6p = km.k6p * c[2];
+    let r8p = km.k8p * c[1] * c[12];
+    let r9 = km.k9 * c[1] * c[13];
+
+    dc[0] = -rcu21 + rcu22 + rm20 + r8p;
+    dc[1] = -rcu21 + rcu22 - rm5 - rm6 - rm24 - r8p - r9;
+    dc[2] = rcu21 - rcu22 - rm3;
+    dc[3] = -2.0 * rm3 - rm5 + 2.0 * rm20 + 2.0 * rm22;
+    dc[4] = rm3 - 2.0 * rm4 - rm21 + rm9 + r6p;
+    dc[5] = rm5 - rm6 + rm7 + rm8;
+    dc[6] = rm6 - 2.0 * rm7 - rm8;
+    dc[7] = rm7 - rm8 - 2.0 * rm9 - rm18 + rm19;
+    dc[8] = rm9 - rm18 + rm19 + rm20 - rm21;
+    dc[9] = 2.0 * rm18 - 2.0 * rm19 - rm20;
+    dc[10] = rm3 - rm20 - rm22;
+    dc[11] = rm21 - rm22 - rm23;
+    dc[12] = r6p - r8p;
+    dc[13] = r8p - r9;
+    dc[14] = rm22 + rm23 - rm24;};
+
+    let kxconculator = |kxs: &State, multiplier, kxconcs: &mut State| {
+        (0usize..15)
+            .zip(kxs)
+            .for_each(|(i, k)| kxconcs[i] = c[i] + *k * multiplier)
+    };
+    let mut kxer = |kxconcs: &State, kxs: &mut State| {
+        differentials(kxconcs, dc);
+        (0usize..15).for_each(|i| kxs[i] = h * dc[i]);
+    };
+    kxer(c, k1s);
+    kxconculator(k1s, 0.5, k2concs);
+    kxer(k2concs, k2s);
+    kxconculator(k2s, 0.5, k3concs);
+    kxer(k3concs, k3s);
+    kxconculator(k3s, 1.0, k4concs);
+    kxer(k4concs, k4s);
+
+    zip!(k1s, k2s, k3s, k4s)
+        .enumerate()
+        .for_each(|(id, (k1, (k2, (k3, k4))))| {
+            c[id] += (k1 + 2.0 * k2 + 2.0 * k3 + *k4) / 6.0;
+        });
 }
