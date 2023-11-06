@@ -1,11 +1,17 @@
 extern crate rev_lines;
-
 use rev_lines::RevLines;
-
 use std::{
     fs::{File, OpenOptions},
     io::{self, BufWriter, Write},
 };
+
+macro_rules! zip {
+    ($x: expr) => ($x);
+    ($x: expr, $($y: expr), +) => (
+        $x.iter().zip(
+            zip!($($y), +))
+    )
+}
 
 struct Oscillator {
     kcu21: f64,
@@ -31,61 +37,34 @@ struct Oscillator {
 
 type State = [f64; 15];
 
-macro_rules! zip {
-    ($x: expr) => ($x);
-    ($x: expr, $($y: expr), +) => (
-        $x.iter().zip(
-            zip!($($y), +))
-    )
-}
-
 fn main() {
     let _path1 = "/home/kartonrealista/actual_code/praca_magisterska_model_26zmienny/ptau1000.csv";
     let path2 =
-        "/home/kartonrealista/actual_code/model_japonczykow/stezenia5.csv";
+        "/home/kartonrealista/actual_code/model_japonczykow/stezenia7.csv";
     let _path1win = r"C:\Users\admin\Desktop\MTHOMAS\x\model26zmienny\ptau.csv";
     let _path2win =
         r"C:\Users\admin\Desktop\MTHOMAS\x\model_japonczykow\stezenia.csv";
 
-    let kcu21 = 10.0_f64.powf(2.0);
-    let kcu22 = 8.3;
-    let km3 = 1.6;
-    let km4 = 40.0;
-    let km5 = 1.5 * 10.0_f64.powf(-3.0);
-    let km6 = 0.3;
-    let km7 = 5.0 * 10.0_f64.powf(2.0);
-    let km8 = 4.0 * 10.0_f64.powf(4.0);
-    let km9 = 40.0;
-    let km18 = 7.0 * 10.0_f64.powf(4.0);
-    let km19 = 8.0 * 10.0_f64.powf(7.0);
-    let km20 = 1.2 * 10.0_f64.powf(7.0);
-    let km21 = 4.0 * 10.0_f64.powf(4.0);
-    let km22 = 1.8 * 10.0_f64.powf(7.0);
-    let km23 = 4.0 * 10.0_f64.powf(9.0);
-    let km24 = 0.2;
-    let k6p = 6.93 * 10.0_f64.powf(-3.0);
-    let k8p = 5.0 * 10.0_f64.powf(4.0);
-    let k9 = 1.02 * 10.0_f64.powf(9.0);
     let mut km = Oscillator {
-        kcu21,
-        kcu22,
-        km3,
-        km4,
-        km5,
-        km6,
-        km7,
-        km8,
-        km9,
-        km18,
-        km19,
-        km20,
-        km21,
-        km22,
-        km23,
-        km24,
-        k6p,
-        k8p,
-        k9,
+        kcu21: 10.0_f64.powf(2.0),
+        kcu22: 8.3,
+        km3: 1.6,
+        km4: 40.0,
+        km5: 1.5 * 10.0_f64.powf(-3.0),
+        km6: 0.3,
+        km7: 5.0 * 10.0_f64.powf(2.0),
+        km8: 4.0 * 10.0_f64.powf(4.0),
+        km9: 40.0,
+        km18: 7.0 * 10.0_f64.powf(4.0),
+        km19: 8.0 * 10.0_f64.powf(7.0),
+        km20: 1.2 * 10.0_f64.powf(7.0),
+        km21: 4.0 * 10.0_f64.powf(4.0),
+        km22: 1.8 * 10.0_f64.powf(7.0),
+        km23: 4.0 * 10.0_f64.powf(9.0),
+        km24: 0.2,
+        k6p: 6.93 * 10.0_f64.powf(-3.0),
+        k8p: 5.0 * 10.0_f64.powf(4.0),
+        k9: 1.02 * 10.0_f64.powf(9.0),
     };
 
     //stale do rk4
@@ -97,15 +76,16 @@ fn main() {
     let mut k4concs = [0.0; 15];
     let mut k4s = [0.0; 15];
 
+    let mut t;
     let mut h;
-    let mut t: f64;
     //stezenia
-    let mut d_conc = [0.0; 15];
     let mut conc: State;
+    let mut d_conc = [0.0; 15];
 
     let stezenia_read = File::open(path2).unwrap();
     let mut rev_lines = RevLines::new(stezenia_read);
     let mut file_was_empty = false;
+
     match rev_lines.next() {
         Some(line) => {
             let unwrapped_line = line.unwrap().clone();
@@ -145,17 +125,16 @@ fn main() {
         .open(path2)
         .expect("Unable to open file");
     let mut stezenia_plik = BufWriter::new(stezenia_plik);
-    // f.write_all("t,Au,Pt\n".as_bytes()).expect("tragedia");
-    // f.write_all(format!("{},{},{}\n", t / 60.0, pot.0, pot.1).as_bytes())
-    //     .expect("tragedia");
-    if file_was_empty {
-        stezenia_plik
-            .write_all(
-                "t,c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14\n"
-                    .as_bytes(),
-            )
-            .expect("tragedia stezenia");
-        stezenia_plik
+
+    match file_was_empty {
+        true => {
+            stezenia_plik
+                .write_all(
+                    "t,c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14\n"
+                        .as_bytes(),
+                )
+                .expect("tragedia stezenia");
+            stezenia_plik
                 .write_all(
                     format!(
                         "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n",
@@ -179,16 +158,15 @@ fn main() {
                     .as_bytes(),
                 )
                 .expect("tragedia stezenia");
-    } else {
-        stezenia_plik
-            .write_all("\n"
-                    .as_bytes(),
-            )
-            .expect("tragedia stezenia");
+        }
+        false => {
+            stezenia_plik
+                .write_all("\n".as_bytes())
+                .expect("tragedia stezenia");
+        }
     }
-    let zapisy_na_sekunde = 10.0;
 
-    //let mut switch = true;
+    let zapisy_na_sekunde = 10.0;
     while t < 4000.0 {
         if t < 5.0 * 10.0_f64.powf(-1.0) {
             h = 6.0 * 10.0_f64.powf(-9.0)
@@ -258,7 +236,7 @@ fn rk4(
     k4concs: &mut State,
     k4s: &mut State,
 ) {
-    let differentials = |c: &[f64; 15], dc: &mut [f64; 15]| {
+    let differentials = |c: &State, dc: &mut State| {
         let c_oh = 0.045;
         let rcu21 = km.kcu21 * c[0] * c[1];
         let rcu22 = km.kcu22 * c[2];
@@ -297,15 +275,16 @@ fn rk4(
         dc[14] = rm22 + rm23 - rm24;
     };
 
-    let kxconculator = |kxs: &State, multiplier, kxconcs: &mut State| {
-        (0usize..15)
-            .zip(kxs)
-            .for_each(|(i, k)| kxconcs[i] = c[i] + *k * multiplier)
-    };
     let mut kxer = |kxconcs: &State, kxs: &mut State| {
         differentials(kxconcs, dc);
         (0usize..15).for_each(|i| kxs[i] = h * dc[i]);
     };
+    let kxconculator = |kxs: &State, multiplier, kxconcs: &mut State| {
+        (0usize..15)
+            .zip(kxs)
+            .for_each(|(i, k)| kxconcs[i] = c[i] + k * multiplier)
+    };
+
     kxer(c, k1s);
     kxconculator(k1s, 0.5, k2concs);
     kxer(k2concs, k2s);
