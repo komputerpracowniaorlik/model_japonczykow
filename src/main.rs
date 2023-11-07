@@ -39,15 +39,15 @@ type State = [f64; 15];
 
 fn main() {
     let _path1 = "/home/kartonrealista/actual_code/praca_magisterska_model_26zmienny/ptau1000.csv";
-    let path2 =
+    let _path2 =
         "/home/kartonrealista/actual_code/model_japonczykow/stezenia8.csv";
     let _path1win = r"C:\Users\admin\Desktop\MTHOMAS\x\model26zmienny\ptau.csv";
-    let _path2win =
-        r"C:\Users\admin\Desktop\MTHOMAS\x\model_japonczykow\stezenia.csv";
+    let path2win =
+        r"C:\Users\admin\Desktop\MTHOMAS\x\model_japonczykow\stezenia8.csv";
 
     let mut km = Oscillator {
         kcu21: 10.0_f64.powf(2.0),
-        kcu22: 8.3,
+        kcu22: 4.5,
         km3: 1.6,
         km4: 40.0,
         km5: 1.5 * 10.0_f64.powf(-3.0),
@@ -82,7 +82,7 @@ fn main() {
     let mut conc: State;
     let mut d_conc = [0.0; 15];
 
-    let stezenia_read = File::open(path2).unwrap();
+    let stezenia_read = File::open(path2win).unwrap();
     let mut rev_lines = RevLines::new(stezenia_read);
     let mut file_was_empty = false;
 
@@ -122,7 +122,7 @@ fn main() {
 
     let stezenia_plik = OpenOptions::new()
         .append(true)
-        .open(path2)
+        .open(path2win)
         .expect("Unable to open file");
     let mut stezenia_plik = BufWriter::new(stezenia_plik);
 
