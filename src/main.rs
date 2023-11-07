@@ -40,7 +40,7 @@ type State = [f64; 15];
 fn main() {
     let _path1 = "/home/kartonrealista/actual_code/praca_magisterska_model_26zmienny/ptau1000.csv";
     let path2 =
-        "/home/kartonrealista/actual_code/model_japonczykow/stezenia7.csv";
+        "/home/kartonrealista/actual_code/model_japonczykow/stezenia8.csv";
     let _path1win = r"C:\Users\admin\Desktop\MTHOMAS\x\model26zmienny\ptau.csv";
     let _path2win =
         r"C:\Users\admin\Desktop\MTHOMAS\x\model_japonczykow\stezenia.csv";
@@ -167,7 +167,7 @@ fn main() {
     }
 
     let zapisy_na_sekunde = 10.0;
-    while t < 4000.0 {
+    while t < 2000.0 {
         if t < 5.0 * 10.0_f64.powf(-1.0) {
             h = 6.0 * 10.0_f64.powf(-9.0)
         } else {
